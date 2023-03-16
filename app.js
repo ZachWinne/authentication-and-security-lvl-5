@@ -10,7 +10,7 @@ app.use(bodyParser.urlencoded( {extended: true} ));
 const ejs = require('ejs');
 app.set('view engine', 'ejs');
 
-const md5 = require('md5')
+const bcrypt = require('bcrypt');
 
 const mongoose = require('mongoose');
 
@@ -30,6 +30,7 @@ app.get('/', (req, res) => {
 })
 
 app.route('/login')
+
   .get( (req, res) => {
     res.render('login')
   })
@@ -39,17 +40,22 @@ app.route('/login')
       email: req.body.username
     })
     .then( (foundUser) => {
-      if (foundUser.password === md5(req.body.password)) {
-        res.render('secrets');
-      }
-      else {
-        res.redirect('/login')
-      }
+      bcrypt.compare(req.body.password, foundUser.password)
+      .then( (matching) => {
+        if (matching) {
+          res.render('secrets');
+        }
+        else {
+          res.redirect('/login')
+        }
+      })
     })
     .catch( (err) => {
       console.log(err);
     });
   });
+
+
 
 app.route('/register')
 
@@ -58,18 +64,26 @@ app.route('/register')
   })
 
   .post( (req, res) => {
-    const newUser = new User({
-      email: req.body.username,
-      password: md5(req.body.password)
-    });
 
-    newUser.save()
-    .then( () => {
-      res.render('secrets');
+    bcrypt.hash(req.body.password, 10)
+    .then( (hash) => {
+      const newUser = new User({
+        email: req.body.username,
+        password: hash
+      });
+
+      newUser.save()
+      .then( () => {
+        res.render('secrets');
+      })
+      .catch( (err) => {
+        console.log(err);
+      });
     })
+
     .catch( (err) => {
       console.log(err);
-    });
+    })
   });
 
 
